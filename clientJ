@@ -1,0 +1,86 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Net;
+using System.Net.Sockets;
+using System.Diagnostics;
+
+namespace clientJ
+{
+    class Program
+    {
+        private static string ip = "127.0.0.1";
+        static IPAddress serverIp = IPAddress.Parse(ip);
+        static IPEndPoint ipe = new IPEndPoint(serverIp, 8888);
+        private static int bufferSize = 1024;
+
+
+        static void Main(string[] args)
+        {
+            Socket s = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            try
+            {
+                s.Connect(ipe);
+                Console.WriteLine("连接成功。");
+                Console.WriteLine("请按Enter发送信息!");
+            }
+            catch (Exception ex) 
+            {
+                Console.WriteLine(ex);
+                throw;
+            }
+            Thread recTh = new Thread(RecMsg);
+            recTh.Start(s);
+            Thread sendTh = new Thread(SendToServer);
+            sendTh.Start(s);
+        }
+            
+        private static void RecMsg(object o)
+        {
+            Socket recSocket = o as Socket;
+            while (true) 
+            {
+                byte[] buffer = new byte[bufferSize];
+                try
+                {
+                    int length = recSocket.Receive(buffer);
+                    byte[] realbuffer = new byte[length];
+                    Array.Copy(buffer, 0, realbuffer, 0, length);
+                    string str = Encoding.Default.GetString(realbuffer);
+                    Console.WriteLine("{0}说：{1}", recSocket.RemoteEndPoint, str);
+                }
+                catch (Exception ex) 
+                {
+                    Console.WriteLine(ex);
+                    break;
+                }
+                
+            }
+            
+        }
+        private static void SendToServer(object o)
+        {
+            Socket secSocket = o as Socket;
+            while (true) 
+            {
+                try
+                {
+                    string str = Console.ReadLine();
+                    if (str != string.Empty)
+                    {
+                        byte[] bt = Encoding.Default.GetBytes(str);
+                        secSocket.Send(bt, bt.Length, SocketFlags.None);
+                    }
+                }
+                catch (Exception ex) 
+                {
+                    Console.WriteLine(ex);
+                    Console.WriteLine("发送失败");
+                    throw;
+                }
+            }
+        }
+    }
+}
