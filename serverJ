@@ -1,0 +1,97 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Net;
+using System.Net.Sockets;
+
+
+namespace serverJ
+{
+    class Program
+    {
+        private static string ip = "127.0.0.1";
+
+        private static int port = 8888;
+        private static int bufferSize = 1024;
+
+        static void Main(string[] args)
+        {
+            IPAddress ipServer = IPAddress.Parse(ip);
+            IPEndPoint ipe = new IPEndPoint(ipServer, port);
+            Socket s = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            try
+            {
+                s.Bind(ipe);
+                s.Listen(10);
+                Console.WriteLine("等待连接...");
+            }
+            catch (Exception ex) 
+            {
+                Console.WriteLine(ex);
+                
+            }
+            Thread conn = new Thread(run);
+            conn.Start(s);
+        }
+        private static void run(object o) 
+        {
+            Socket socket = o as Socket;
+            try
+            {
+                Socket connSocket = socket.Accept();
+                Console.WriteLine("{0}成功连接.", connSocket.RemoteEndPoint);
+
+                Thread recTh = new Thread(recMsg);
+                recTh.Start(connSocket);
+                Thread sendTh = new Thread(sendMsg);
+                sendTh.Start(connSocket);
+            }
+            catch (Exception ex) 
+            {
+                Console.WriteLine(ex);
+                throw;
+            }
+        }
+        private static void recMsg(object o) 
+        {
+            Socket reSocket = o as Socket;
+            while (true)
+            {
+                byte[] buffer = new Byte[bufferSize];
+                try
+                {
+                    int length = reSocket.Receive(buffer);
+                    byte[] realBuffer = new Byte[length];
+                    Array.Copy(buffer, 0, realBuffer, 0, length);
+                    string str = System.Text.Encoding.Default.GetString(realBuffer);
+
+                    Console.WriteLine("{0}说：{1}.", reSocket.RemoteEndPoint, str);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                    Console.ReadKey();
+                    break;
+                }
+            }
+            
+        }
+        private static void sendMsg(object o)
+        {
+            Socket sendSocket = o as Socket;
+            while (true)
+            {
+                string str = Console.ReadLine();
+                if (str != string.Empty)
+                {
+                    byte[] buffer = Encoding.Default.GetBytes(str);
+                    sendSocket.Send(buffer, buffer.Length, SocketFlags.None);
+                }
+            }
+
+
+        }
+    }
+}
