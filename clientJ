@@ -11,73 +11,80 @@ namespace clientJ
 {
     class Program
     {
-        private static string ip = "127.0.0.1";
-        static IPAddress serverIp = IPAddress.Parse(ip);
-        static IPEndPoint ipe = new IPEndPoint(serverIp, 8888);
+        private static string host = "192.168.1.136";
+        private static int port = 8888;
         private static int bufferSize = 1024;
-
-
+        static IPAddress ip = IPAddress.Parse(host);
+        static IPEndPoint ipe = new IPEndPoint(ip, port);
+        private static int count = 0;//表示对话序号
+        private static string userName = null;
         static void Main(string[] args)
         {
-            Socket s = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            try
+            Console.WriteLine("请输入用户名，按Enter结束。");
+            userName = Console.ReadLine();
+            if (userName != string.Empty) 
             {
-                s.Connect(ipe);
-                Console.WriteLine("连接成功。");
-                Console.WriteLine("请按Enter发送信息!");
-            }
-            catch (Exception ex) 
-            {
-                Console.WriteLine(ex);
-                throw;
-            }
-            Thread recTh = new Thread(RecMsg);
-            recTh.Start(s);
-            Thread sendTh = new Thread(SendToServer);
-            sendTh.Start(s);
-        }
-            
-        private static void RecMsg(object o)
-        {
-            Socket recSocket = o as Socket;
-            while (true) 
-            {
-                byte[] buffer = new byte[bufferSize];
+                Socket s = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 try
                 {
-                    int length = recSocket.Receive(buffer);
-                    byte[] realbuffer = new byte[length];
-                    Array.Copy(buffer, 0, realbuffer, 0, length);
-                    string str = Encoding.Default.GetString(realbuffer);
-                    Console.WriteLine("{0}说：{1}", recSocket.RemoteEndPoint, str);
+                    s.Connect(ipe);
+                    Console.WriteLine("成功连接到{0}。", s.RemoteEndPoint);
+                    Console.WriteLine("请输入要发送给服务器的话，按Enter发送。");
                 }
-                catch (Exception ex) 
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(ex);
+                    throw;
+                }
+                Thread clientTh = new Thread(SendToServer);
+                clientTh.Start(s);
+                Thread recTh = new Thread(RecMsg);
+                recTh.Start(s);
+            }
+
+            
+        }
+        private static void RecMsg(object o)
+        {
+            Socket connSocket = o as Socket;
+            while (true)
+            {
+                byte[] buffer = new Byte[bufferSize];
+                try
+                {
+                    int length = connSocket.Receive(buffer);
+                    byte[] realBuffer = new Byte[length];
+                    Array.Copy(buffer, 0, realBuffer, 0, length);
+                    string str = System.Text.Encoding.Default.GetString(realBuffer);
+                    Console.Write("[{0}] ", count++);
+                    Console.WriteLine("{0}说：{1}.", connSocket.RemoteEndPoint, str);
+                }
+                catch (Exception ex)
                 {
                     Console.WriteLine(ex);
+                    Console.ReadKey();
                     break;
                 }
-                
             }
-            
         }
         private static void SendToServer(object o)
         {
-            Socket secSocket = o as Socket;
-            while (true) 
+            Socket socket = o as Socket;
+            while (true)
             {
                 try
                 {
                     string str = Console.ReadLine();
                     if (str != string.Empty)
                     {
-                        byte[] bt = Encoding.Default.GetBytes(str);
-                        secSocket.Send(bt, bt.Length, SocketFlags.None);
+                        byte[] bt = Encoding.Default.GetBytes(userName +" 说: " +str);
+                        socket.Send(bt, bt.Length, 0);
                     }
                 }
-                catch (Exception ex) 
+                catch (Exception ex)
                 {
-                    Console.WriteLine(ex);
-                    Console.WriteLine("发送失败");
+                    Console.WriteLine("发送失败。");
+                    Debug.WriteLine(ex);
                     throw;
                 }
             }
