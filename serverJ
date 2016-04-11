@@ -9,65 +9,71 @@ using System.Net.Sockets;
 
 namespace serverJ
 {
-    class Program
+     class Program
     {
-        private static string ip = "127.0.0.1";
-
-        private static int port = 8888;
+        private static string serverIP = "192.168.1.136";//本机ip地址
+        private static int serverPort = 8888;
         private static int bufferSize = 1024;
+        private static int count = 0;//表示对话序号
 
         static void Main(string[] args)
         {
-            IPAddress ipServer = IPAddress.Parse(ip);
-            IPEndPoint ipe = new IPEndPoint(ipServer, port);
+            IPAddress ip = IPAddress.Parse(serverIP);
+            IPEndPoint ipe = new IPEndPoint(ip, serverPort);
             Socket s = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             try
             {
                 s.Bind(ipe);
                 s.Listen(10);
-                Console.WriteLine("等待连接...");
+                Console.WriteLine("等待连接……");
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
                 Console.WriteLine(ex);
-                
             }
-            Thread conn = new Thread(run);
-            conn.Start(s);
+            Thread mainTrd = new Thread(Run);
+            mainTrd.Start(s);
         }
-        private static void run(object o) 
+        
+        private static void Run(object o)
         {
             Socket socket = o as Socket;
-            try
+            while (true) 
             {
-                Socket connSocket = socket.Accept();
-                Console.WriteLine("{0}成功连接.", connSocket.RemoteEndPoint);
+                try
+                {
 
-                Thread recTh = new Thread(recMsg);
-                recTh.Start(connSocket);
-                Thread sendTh = new Thread(sendMsg);
-                sendTh.Start(connSocket);
+                    Socket connSocket = socket.Accept();
+                    //客户和服务器连接成功。
+                    Console.WriteLine("{0}成功连接到本机。", connSocket.RemoteEndPoint);
+                    //接下来的事情交给会话线程
+                    Thread recTh = new Thread(RecMsg);
+                    recTh.Start(connSocket);
+                    Thread sendTh = new Thread(SendMsg);
+                    sendTh.Start(connSocket);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                    throw;
+                }
             }
-            catch (Exception ex) 
-            {
-                Console.WriteLine(ex);
-                throw;
-            }
+            
         }
-        private static void recMsg(object o) 
+        private static void RecMsg(object o)
         {
-            Socket reSocket = o as Socket;
+            Socket connSocket = o as Socket;
             while (true)
             {
                 byte[] buffer = new Byte[bufferSize];
                 try
                 {
-                    int length = reSocket.Receive(buffer);
+                    int length = connSocket.Receive(buffer);
                     byte[] realBuffer = new Byte[length];
                     Array.Copy(buffer, 0, realBuffer, 0, length);
                     string str = System.Text.Encoding.Default.GetString(realBuffer);
-
-                    Console.WriteLine("{0}说：{1}.", reSocket.RemoteEndPoint, str);
+                    Console.Write("[{0}] ", count++);
+                    Console.WriteLine(str);
                 }
                 catch (Exception ex)
                 {
@@ -76,22 +82,19 @@ namespace serverJ
                     break;
                 }
             }
-            
         }
-        private static void sendMsg(object o)
+        private static void SendMsg(object o)
         {
-            Socket sendSocket = o as Socket;
+            Socket connSocket = o as Socket;
             while (true)
             {
                 string str = Console.ReadLine();
                 if (str != string.Empty)
                 {
                     byte[] buffer = Encoding.Default.GetBytes(str);
-                    sendSocket.Send(buffer, buffer.Length, SocketFlags.None);
+                    connSocket.Send(buffer, buffer.Length, SocketFlags.None);
                 }
             }
-
-
         }
     }
 }
