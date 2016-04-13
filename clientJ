@@ -11,7 +11,7 @@ namespace clientJ
 {
     class Program
     {
-        private static string host = "192.168.1.136";
+        private static string host = "192.168.1.108";
         private static int port = 8888;
         private static int bufferSize = 1024;
         static IPAddress ip = IPAddress.Parse(host);
@@ -40,9 +40,7 @@ namespace clientJ
                 clientTh.Start(s);
                 Thread recTh = new Thread(RecMsg);
                 recTh.Start(s);
-            }
-
-            
+            }          
         }
         private static void RecMsg(object o)
         {
