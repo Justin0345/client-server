@@ -9,15 +9,17 @@ using System.Net.Sockets;
 
 namespace serverJ
 {
-     class Program
+      class Program
     {
-        private static string serverIP = "192.168.1.136";//本机ip地址
+        private static string serverIP = "192.168.1.108";//本机ip地址
         private static int serverPort = 8888;
         private static int bufferSize = 1024;
         private static int count = 0;//表示对话序号
-
+        private static Dictionary<string, Socket> socketData = null;
+        private static string userCount = null;
         static void Main(string[] args)
         {
+            socketData = new Dictionary<string, Socket>();
             IPAddress ip = IPAddress.Parse(serverIP);
             IPEndPoint ipe = new IPEndPoint(ip, serverPort);
             Socket s = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
@@ -32,33 +34,34 @@ namespace serverJ
                 Console.WriteLine(ex);
             }
             Thread mainTrd = new Thread(Run);
-            mainTrd.Start(s);
+            mainTrd.Start(s);            
         }
         
         private static void Run(object o)
         {
-            Socket socket = o as Socket;
+            
+            
             while (true) 
             {
                 try
                 {
-
+                    Socket socket = o as Socket;
+                    
                     Socket connSocket = socket.Accept();
+                    userCount = connSocket.RemoteEndPoint.ToString();
+                    socketData.Add(userCount, connSocket);
                     //客户和服务器连接成功。
                     Console.WriteLine("{0}成功连接到本机。", connSocket.RemoteEndPoint);
-                    //接下来的事情交给会话线程
+                    //接下来的事情交给会话线程                   
                     Thread recTh = new Thread(RecMsg);
-                    recTh.Start(connSocket);
-                    Thread sendTh = new Thread(SendMsg);
-                    sendTh.Start(connSocket);
+                    recTh.Start(connSocket);                                                 
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine(ex);
                     throw;
                 }
-            }
-            
+            }                      
         }
         private static void RecMsg(object o)
         {
@@ -72,6 +75,17 @@ namespace serverJ
                     byte[] realBuffer = new Byte[length];
                     Array.Copy(buffer, 0, realBuffer, 0, length);
                     string str = System.Text.Encoding.Default.GetString(realBuffer);
+                    if (str != string.Empty) 
+                    {
+                        foreach (KeyValuePair<string, Socket> data in socketData)
+                        {
+                            if (data.Key != connSocket.RemoteEndPoint.ToString()) 
+                            {
+                                byte[] Sendbuffer = Encoding.Default.GetBytes(str);
+                                data.Value.Send(Sendbuffer, Sendbuffer.Length, SocketFlags.None);
+                            }
+                        }
+                    }
                     Console.Write("[{0}] ", count++);
                     Console.WriteLine(str);
                 }
@@ -80,19 +94,6 @@ namespace serverJ
                     Console.WriteLine(ex);
                     Console.ReadKey();
                     break;
-                }
-            }
-        }
-        private static void SendMsg(object o)
-        {
-            Socket connSocket = o as Socket;
-            while (true)
-            {
-                string str = Console.ReadLine();
-                if (str != string.Empty)
-                {
-                    byte[] buffer = Encoding.Default.GetBytes(str);
-                    connSocket.Send(buffer, buffer.Length, SocketFlags.None);
                 }
             }
         }
